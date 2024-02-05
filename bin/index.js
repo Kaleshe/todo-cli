@@ -11,13 +11,6 @@ mongoose.connect(process.env.MONGODB);
 
 yargs.usage("\nUsage: $0 [cmd] <args>").alias("h", "help");
 
-yargs
-  .option("help", {
-    description: "Lists all available options",
-    demandOption: false,
-  })
-  .help(true);
-
 yargs.command(
   "new",
   "Add a new todo item",
