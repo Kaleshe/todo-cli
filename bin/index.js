@@ -126,5 +126,3 @@ yargs
       mongoose.disconnect();
     });
   });
-
-console.log(process.env);
