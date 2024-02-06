@@ -4,17 +4,20 @@ A simple node.js application to manage todos
 
 ## Setup
 
-### Set up mongoDB database
-
-Set global env variable
-```
-export MONGODB=<url>
-```
-
 ### Install package and dependencies
 
 ```
 npm i -g
+```
+
+### Set up SQLITE database
+
+```
+touch todo.sqlite
+```
+
+```
+npm run setup
 ```
 
 ## Commands

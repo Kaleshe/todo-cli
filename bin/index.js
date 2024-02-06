@@ -4,10 +4,8 @@ require("dotenv").config();
 
 const yargs = require("yargs");
 const chalk = require("chalk");
-const mongoose = require("mongoose");
-const Todo = require("../Models/todoModel.js");
 
-mongoose.connect(process.env.MONGODB);
+const db = require("./db.js");
 
 yargs.usage("\nUsage: $0 [cmd] <args>").alias("h", "help");
 
@@ -22,14 +20,17 @@ yargs.command(
       describe: "What do you need to do?",
     },
   },
-  async function ({ description, d }) {
-    try {
-      Todo.create({ description: description || d, done: false }).then(() => {
+  ({ description, d }) => {
+    db.run(
+      `INSERT INTO todos(description, done) VALUES(?, ?)`,
+      [description || d, 0],
+      (err) => {
+        if (err) {
+          throw err;
+        }
         console.log(`${chalk.bold.yellow(description || d)} has been added.`);
-      });
-    } catch (err) {
-      console.log(err);
-    }
+      }
+    );
   }
 );
 
@@ -43,44 +44,44 @@ yargs.command(
       describe: "Todo item ID",
     },
   },
-  async function ({ id }) {
-    try {
-      const todo = await Todo.deleteOne({ _id: id });
-      if (todo.deletedCount > 0) {
-        console.log(`${chalk.yellow.bold(id)} has been succesfully deleted.`);
-      } else {
-        console.log(
-          `Sorry, but it looks like the todo with the id ${chalk.yellow.bold(
-            id
-          )} doesn't exist`
-        );
+  ({ id }) => {
+    db.run(`DELETE FROM todos WHERE ID = ?`, id, (err) => {
+      if (err) {
+        throw err;
       }
-    } catch (err) {
-      console.log(err);
-    }
+
+      console.log(`${chalk.yellow.bold(id)} has been succesfully deleted.`);
+    });
   }
 );
 
-yargs.command("list", "List todo items", async function () {
-  try {
-    const todos = await Todo.find({ done: false });
-    todos.map(({ description, id }) => {
-      console.log(chalk.yellow.bold.bgBlack("- " + description), chalk.dim(id));
+yargs.command("list", "List todo items", () => {
+  db.all(`SELECT * FROM todos WHERE DONE=0`, [], (err, rows) => {
+    if (err) {
+      throw err;
+    }
+
+    if (rows.length === 0) {
+      console.log("You don't have any todos, why dont you make some?");
+    }
+
+    rows.forEach((row) => {
+      console.log(
+        chalk.dim(row.ID),
+        chalk.yellow.bold.bgBlack(row.DESCRIPTION)
+      );
     });
-  } catch (err) {
-    console.log(err);
-  }
+  });
 });
 
-yargs.command("completed", "List completed todo items", async function () {
-  try {
-    const todos = await Todo.find({ done: true });
-    todos.map(({ description, id }) => {
-      console.log(chalk.green.bold.bgBlack("- " + description), chalk.dim(id));
-    });
-  } catch (err) {
-    console.log(err);
-  }
+yargs.command("completed", "List completed todo items", () => {
+  db.each(`SELECT * FROM todos WHERE done=1`, [], (err, row) => {
+    if (err) {
+      throw err;
+    }
+
+    console.log(chalk.dim(row.ID), chalk.green.bold.bgBlack(row.DESCRIPTION));
+  });
 });
 
 yargs
@@ -94,35 +95,22 @@ yargs
         describe: "Todo item ID",
       },
     },
-    async function (argv) {
-      try {
-        const { description, done } = await Todo.findOneAndUpdate(
-          {
-            _id: argv.id,
-          },
-          { done: true }
-        );
-
-        if (done) {
-          console.log(
-            `The task: ${chalk.yellow.bold(description)} has ${chalk.red.bold(
-              "already been marked"
-            )} as done`
-          );
-        } else {
-          console.log(
-            `The task: ${chalk.yellow.bold(description)} has ${chalk.green.bold(
-              "been marked"
-            )} as done`
-          );
+    ({ id }) => {
+      db.run(`UPDATE todos SET done = ? WHERE id = ?`, [true, id], (err) => {
+        if (err) {
+          throw err;
         }
-      } catch (err) {
-        console.log(err);
-      }
+
+        console.log(
+          `Task ${chalk.yellow.bold(id)} has ${chalk.green.bold(
+            "been marked as done"
+          )}`
+        );
+      });
     }
   )
   .parseAsync(process.argv.splice(2), (err, argv, output) => {
     Promise.resolve(argv).then(() => {
-      mongoose.disconnect();
+      db.close();
     });
   });
